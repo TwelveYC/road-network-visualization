@@ -4,7 +4,8 @@ import json
 
 data = {}
 ox.config(use_cache=True, log_console=False)
-G = ox.graph_from_place('Piedmont, California, USA', network_type='drive')
+# G = ox.graph_from_place('Piedmont, California, USA', network_type='drive')
+G = ox.graph_from_place('北京, 中国', network_type='drive')
 adj = G.adj
 links = list()
 vertex = list()

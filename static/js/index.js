@@ -48,7 +48,7 @@ d3.json("/data.json").then(res => {
     .join("path")
     .attr("class", "road")
     .attr("stroke", "gray")
-    .attr("stroke-width", 5)
+    .attr("stroke-width", 3)
     .attr("fill", "none")
     .attr("d", d => line(d.geometry))
     const drag = () => {
@@ -82,7 +82,7 @@ d3.json("/data.json").then(res => {
                 .datum(drag_points)
                 .attr("class", "drag-line")
                 .attr("stroke", "gray")
-                .attr("stroke-width", 5)
+                .attr("stroke-width", 3)
                 .attr("fill", "none")
                 .attr("d", append_line)
             drag_points = [];
@@ -121,8 +121,8 @@ d3.json("/data.json").then(res => {
         .attr("class", "cross")
         .attr("cx",d => x(d.x))
         .attr("cy",d => y(d.y))
-        .attr("r", 7)
-        .attr("fill", "red")
+        .attr("r", 1)
+        .attr("fill", "rgb(155, 221, 255)")
         .call(drag())
     console.log(event)
     
