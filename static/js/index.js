@@ -8,16 +8,26 @@ const g = svg.append('g')
     .attr('transform', `translate(${margin.left}, ${margin.top})`)
     .attr('width', inner_width)
     .attr('height', inner_height);
+let circles;
+let lines;
+let x,y;
+let color;
 
-d3.json("/data.json").then(res => {
-    console.log(res);
+d3.json("/data/beijing.json").then(res => {
+    
     const nodes = res.nodes;
+    console.log(nodes)
     const edges = res.edges;
+    color = d3.scaleOrdinal(d3.schemeCategory10);
 
-    const x = d3.scaleLinear()
+    const colorScale = d3.scaleLog().base(2).domain(d3.extent(nodes, d => d.dc)).range([0, 1])
+
+    let circle_color = d => d3.interpolatePuOr(colorScale(d))
+
+    x = d3.scaleLinear()
             .domain(d3.extent(nodes, d => d.x))
             .range([0, inner_width]);
-    const y = d3.scaleLinear()
+    y = d3.scaleLinear()
             .domain(d3.extent(nodes, d => d.y))
             .range([inner_height, 0]);      
 
@@ -43,7 +53,7 @@ d3.json("/data.json").then(res => {
         .y(d => d[1])
     let drag_line;
 
-    const lines = g.selectAll(".road")
+    lines = g.selectAll(".road")
     .data(edges)
     .join("path")
     .attr("class", "road")
@@ -115,26 +125,68 @@ d3.json("/data.json").then(res => {
             .on("end", bursh_end)
     }
     g.call(brush()).call(g => g.select(".overlay").style("cursor", "default"));
-    const circles = g.selectAll("cross")
+    circles = g.selectAll("cross")
         .data(nodes)
         .join("circle")
         .attr("class", "cross")
         .attr("cx",d => x(d.x))
         .attr("cy",d => y(d.y))
-        .attr("r", 1)
+        .attr("r", 2)
+        // .attr("fill", d => circle_color(d.dc))
         .attr("fill", "rgb(155, 221, 255)")
         .call(drag())
-    console.log(event)
-    
+    g.call(d3.zoom()
+    .extent([[0, 0], [inner_width, inner_height]])
+    .scaleExtent([1, 8]))
+    // .on("zoom", zoomed))
+    // function zoomed() {
+    //     const {transform} = d3.event;
+    //     g.attr("transform", transform)
+    // }
 
-    const resetButton = document.getElementById("reset");
-    resetButton.addEventListener("click", () => {
-        circles
-            .attr("cx",d => x(d.x))
-            .attr("cy",d => y(d.y));
-        lines   
-            .attr("d", d => line(d.geometry));
 
-        d3.selectAll(".drag-line").remove();
+
+    const disticts_data = [];
+    const disticts_line = {}
+
+    const backColor = document.getElementById("back-color");
+    backColor.addEventListener("change", function() {
+        console.log(this.checked);
+        if (this.checked) {
+            d3.json("/data/北京市.json").then(results => {
+                for(let result of results.features){
+                
+                }
+                results.features.forEach((v,i) => {
+                    let coordinates= v.geometry.coordinates[0];
+                    disticts_data.push(coordinates)
+                    let name = v.properties.name
+                    let code = v.properties.adcode
+                    let dis_lines = g.selectAll(".district" + code)
+                    .data(coordinates)
+                    .join("path")
+                    .attr("class", "district"+ code)
+                    .attr("class", "district")
+                    .attr("stroke", "#999")
+                    .attr("storke-width", 5)
+                    .attr("fill", color(i))
+                    .attr("d", d => line(d))
+                    .attr("opacity", 0.3)
+                    disticts_line[name] = dis_lines
+                })
+            })
+        }else {
+            d3.selectAll(".district").remove()
+        }
     })
+    const renderColor = document.getElementById("render-color");
+    renderColor.addEventListener("change", function() {
+        if (this.checked) {
+            circles.attr("fill", d => circle_color(d.dc))
+        }else {
+            circles.attr("fill", "rgb(155, 221, 255)")
+        }
+    })
+
 })
+
