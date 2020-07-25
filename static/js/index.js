@@ -30,7 +30,8 @@ d3.json("/data/beijing.json").then(res => {
     y = d3.scaleLinear()
             .domain(d3.extent(nodes, d => d.y))
             .range([inner_height, 0]);      
-
+    console.log(d3.extent(nodes, d => d.x))
+    console.log(d3.extent(nodes, d => d.y))
  
     const node_map = d3.map();
     nodes.forEach(v => {
@@ -154,9 +155,6 @@ d3.json("/data/beijing.json").then(res => {
         console.log(this.checked);
         if (this.checked) {
             d3.json("/data/北京市.json").then(results => {
-                for(let result of results.features){
-                
-                }
                 results.features.forEach((v,i) => {
                     let coordinates= v.geometry.coordinates[0];
                     disticts_data.push(coordinates)
@@ -170,7 +168,7 @@ d3.json("/data/beijing.json").then(res => {
                     .attr("stroke", "#999")
                     .attr("storke-width", 5)
                     .attr("fill", color(i))
-                    .attr("d", d => line(d))
+                    .attr("d", d => {console.log(d) ;return line(d)})
                     .attr("opacity", 0.3)
                     disticts_line[name] = dis_lines
                 })

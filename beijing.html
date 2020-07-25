@@ -5,35 +5,221 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>北京</title>
     <script src="./d3.js"></script>
-    <script src="./static/js/topojson.js"></script>
+    <script src="./static/js/d3-tip.js"></script>
 </head>
 <body>
     <svg id="mainsvg" width="1200" height="1000"></svg>
+    <label for="">
+        <input type="checkbox">
+    </label>
     <script>
         const svg = d3.select("svg");
         const width = +svg.attr('width');
         const height = +svg.attr('height');
-        const margin = {top: 120, right: 50, bottom: 50, left: 120};
+        const margin = {top: 50, right: 20, bottom: 20, left: 50};
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
         const g = svg.append('g')
         .attr('id', 'maingroup')
         .attr("transform", `translate(${margin.left}, ${margin.top})`);
-        const projection = d3.geoNaturalEarth1();
-        const geo = d3.geoPath().projection(projection);
-
+        let x;
+        let y;
+        const tip = d3.tip().attr("class", "d3-tip").html(d => d)
+        g.call(tip)
+        // 0: "115.477169"
+        // 1: "117.4975806"
+        // 0: "39.4466532"
+        // 1: "41.0454161"
+        const title = g.append("text").attr("transform", `translate(20, 40)`).attr("font-size", "5em").text("北京市")
         d3.json("/data/北京市.json").then(res => {
             console.log(res);
 
-             let meta = topojson.feature(res, res.features[0].geometry.coordinates);
-            projection.fitSize([innerWidth, innerHeight]);
-            console.log(projection([116.436488,39.902042])) 
-            g.selectAll("path")
-                .data(meta.features)
-                .join("path")
-                .attr("d",geo)
-                .attr("stroke-width", 2)
+            x = d3.scaleLinear()
+            .domain(["115.477169", "117.4975806"])
+            .range([0, innerWidth]);
+            y = d3.scaleLinear()
+                .domain([39.4466532, 41.0454161])
+                .range([innerHeight, 0]); 
+            
+            const line = d3.line()
+                .x(d => x(d[0]))
+                .y(d => y(d[1]));
+
+            res.features.forEach((v, i) => {
+                let coordinates = v.geometry.coordinates[0];
+                    let name = v.properties.name
+                    let code = v.properties.adcode
+                    let dis_lines = g.append("g").attr("class", code + " allg")
+                        .selectAll(".district" + code)
+                        .data(coordinates)
+                        .join("path")
+                        .attr("class", "district"+ code + " district-path")
+                        .attr("stroke", "#999")
+                        .attr("name", name)
+                        .attr("storke-width", 5)
+                        .attr("fill", "white")
+                        .attr("d", d => line(d))
+                        .on("click", function() {
+                            const distict = d3.select(this);
+                            const name = distict.attr("name");
+                            let appendg;
+                            d3.json("/data/" + name  + ".json").then(result => {
+                                title.text(name);
+                                tip.hide();
+                                const geometry = result.features[0].geometry.coordinates[0];
+                                const dis_x = d3.scaleLinear()
+                                    .domain(d3.extent(geometry[0], d => d[0]))
+                                    .range([0, innerWidth]);
+                                const dis_y = d3.scaleLinear()
+                                    .domain(d3.extent(geometry[0], d => d[1]))
+                                    .range([innerHeight, 0]);
+                                const dis_line = d3.line()
+                                        .x(d => dis_x(d[0]))
+                                        .y(d => dis_y(d[1]))
+                                d3.selectAll(".allg").attr("display", "none");
+                               
+                                appendg = g.append("g").attr("class", "appendg");
+
+                                    appendg.selectAll(".districtg")
+                                    .data(geometry)
+                                    .join("path")
+                                    .attr("stroke", "#999")
+                                    .attr("class", "districtg")
+                                    .attr("name", name)
+                                    .attr("storke-width", 5)
+                                    .attr("fill", "white")
+                                    .attr("d", d => dis_line(d))
+                                    .on("mouseover", function() {
+                                        const distict = d3.select(this);
+                                        distict.attr("stroke", "black").attr("storke-width", 10);
+                                        tip.show(distict.attr("name"))
+                                    }).on("mouseout", function() {
+                                        const distict = d3.select(this);
+                                        tip.hide();
+                                        distict.attr("stroke", "#999").attr("storke-width", 5)
+                                    })
+                                    d3.json("/data/node_data/" + name + ".json").then( result => {
+                                        const nodes = result.nodes;
+                                        const edges = result.edges;
+                                        const node_map = d3.map();
+                                        nodes.forEach(v => {
+                                            node_map.set(v.id, [v.x, v.y]);
+                                        })    
+                                        edges.forEach(v => {
+                                            v.geometry = v.geometry.map(t => {
+                                                return t.split(" ").filter(q => q !== "").map(r => parseFloat(r));
+                                            }).filter(v => v.length !== 0)
+                                            v.geometry.unshift(node_map.get(v.id[0]));
+                                            v.geometry.push(node_map.get(v.id[1]));
+                                        })
+
+                                        const lines = appendg.selectAll(".road")
+                                            .data(edges)
+                                            .join("path")
+                                            .attr("class", "road")
+                                            .attr("stroke", "#333")
+                                            .attr("stroke-width", 1)
+                                            .attr("fill", "none")
+                                            .attr("d", d => dis_line(d.geometry));
+                                            const points = appendg.selectAll(".cross")
+                                            .data(nodes)
+                                            .join("circle")
+                                            .attr("class", "cross")
+                                            .attr("cx",d => dis_x(d.x))
+                                            .attr("cy",d => dis_y(d.y))
+                                            .attr("r", 2)
+                                            .attr("fill", "rgb(155, 221, 255)");
+                                        appendg.call(d3.zoom()
+                                        .extent([[0, 0], [innerWidth, innerHeight]])
+                                        .scaleExtent([1, 8])
+                                        .on("zoom", function() {
+                                            const {transform} = d3.event;
+                                            g.attr("transform", transform)
+                                            console.log(transform)
+                                        }))
+                                    })
+                               
+                            })
+                            svg.on("click", function() {
+                                    const srcElement = d3.event.srcElement.nodeName
+                                    if(srcElement === "svg") {
+                                        d3.selectAll(".allg").attr("display", "block");
+                                        console.log(appendg)
+                                        appendg.remove();
+                                        svg.on("click", null);
+                                        title.text("北京市");
+                                    }
+                                })
+                        }).on("mouseover", function() {
+                            const distict = d3.select(this);
+                            distict.attr("stroke", "black").attr("storke-width", 10);
+                            tip.show(distict.attr("name"))
+                        }).on("mouseout", function() {
+                            const distict = d3.select(this);
+                            tip.hide();
+                            distict.attr("stroke", "#999").attr("storke-width", 5)
+                        })
+
+            })
         })
     </script>
+    <style>
+        .d3-tip {
+            line-height: 1;
+            font-weight: bold;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 2px;
+            pointer-events: none;
+            }
+
+            /* Creates a small triangle extender for the tooltip */
+            .d3-tip:after {
+            box-sizing: border-box;
+            display: inline;
+            font-size: 10px;
+            width: 100%;
+            line-height: 1;
+            color: rgba(0, 0, 0, 0.8);
+            position: absolute;
+            pointer-events: none;
+            }
+
+            /* Northward tooltips */
+            .d3-tip.n:after {
+            content: "\25BC";
+            margin: -1px 0 0 0;
+            top: 100%;
+            left: 0;
+            text-align: center;
+            }
+
+            /* Eastward tooltips */
+            .d3-tip.e:after {
+            content: "\25C0";
+            margin: -4px 0 0 0;
+            top: 50%;
+            left: -8px;
+            }
+
+            /* Southward tooltips */
+            .d3-tip.s:after {
+            content: "\25B2";
+            margin: 0 0 1px 0;
+            top: -8px;
+            left: 0;
+            text-align: center;
+            }
+
+            /* Westward tooltips */
+            .d3-tip.w:after {
+            content: "\25B6";
+            margin: -4px 0 0 -1px;
+            top: 50%;
+            left: 100%;
+            }
+
+    </style>
 </body>
 </html>
