@@ -9,9 +9,7 @@
 </head>
 <body>
     <svg id="mainsvg" width="1200" height="1000"></svg>
-    <label for="">
-        <input type="checkbox">
-    </label>
+    <button id="svg-reset">图形复原</button>
     <script>
         const svg = d3.select("svg");
         const width = +svg.attr('width');
@@ -24,13 +22,30 @@
         .attr("transform", `translate(${margin.left}, ${margin.top})`);
         let x;
         let y;
-        const tip = d3.tip().attr("class", "d3-tip").html(d => d)
+        const tip = d3.tip().attr("class", "d3-tip").html(d => d);
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+        let appendg;
+        let state = true;
+        let append_zoom;
+        let g_zoom;
         g.call(tip)
         // 0: "115.477169"
         // 1: "117.4975806"
         // 0: "39.4466532"
         // 1: "41.0454161"
-        const title = g.append("text").attr("transform", `translate(20, 40)`).attr("font-size", "5em").text("北京市")
+        const title = svg.append("text").attr("transform", `translate(20, 80)`).attr("font-size", "5em").text("北京市");
+        const button = document.getElementById("svg-reset");
+        button.addEventListener("click", function() {
+            if(state) {
+                // g.attr("transform", `translate(${margin.left}, ${margin.top})`);
+                // console.log(d3.event)
+                g_zoom.scaleTo(g,1);
+                g_zoom.translateTo(g, innerWidth/2, innerHeight/2)
+            }else{
+                append_zoom.scaleTo(appendg, 1);
+                append_zoom.translateTo(appendg, innerWidth/2, innerHeight/2)
+            }
+        })
         d3.json("/data/北京市.json").then(res => {
             console.log(res);
 
@@ -57,12 +72,13 @@
                         .attr("stroke", "#999")
                         .attr("name", name)
                         .attr("storke-width", 5)
-                        .attr("fill", "white")
+                        .attr("fill", color(i))
                         .attr("d", d => line(d))
                         .on("click", function() {
                             const distict = d3.select(this);
                             const name = distict.attr("name");
-                            let appendg;
+                            state = false
+                            
                             d3.json("/data/" + name  + ".json").then(result => {
                                 title.text(name);
                                 tip.hide();
@@ -87,17 +103,18 @@
                                     .attr("class", "districtg")
                                     .attr("name", name)
                                     .attr("storke-width", 5)
-                                    .attr("fill", "white")
+                                    .attr("fill", color(i))
+                                    .attr("opacity", 0.3)
                                     .attr("d", d => dis_line(d))
-                                    .on("mouseover", function() {
-                                        const distict = d3.select(this);
-                                        distict.attr("stroke", "black").attr("storke-width", 10);
-                                        tip.show(distict.attr("name"))
-                                    }).on("mouseout", function() {
-                                        const distict = d3.select(this);
-                                        tip.hide();
-                                        distict.attr("stroke", "#999").attr("storke-width", 5)
-                                    })
+                                    // .on("mouseover", function() {
+                                    //     const distict = d3.select(this);
+                                    //     distict.attr("stroke", "black").attr("storke-width", 10);
+                                    //     tip.show(distict.attr("name"))
+                                    // }).on("mouseout", function() {
+                                    //     const distict = d3.select(this);
+                                    //     tip.hide();
+                                    //     distict.attr("stroke", "#999").attr("storke-width", 5)
+                                    // })
                                     d3.json("/data/node_data/" + name + ".json").then( result => {
                                         const nodes = result.nodes;
                                         const edges = result.edges;
@@ -129,14 +146,14 @@
                                             .attr("cy",d => dis_y(d.y))
                                             .attr("r", 2)
                                             .attr("fill", "rgb(155, 221, 255)");
-                                        appendg.call(d3.zoom()
+                                            append_zoom = d3.zoom()
                                         .extent([[0, 0], [innerWidth, innerHeight]])
                                         .scaleExtent([1, 8])
                                         .on("zoom", function() {
                                             const {transform} = d3.event;
-                                            g.attr("transform", transform)
-                                            console.log(transform)
-                                        }))
+                                            appendg.attr("transform", transform)
+                                        })
+                                        appendg.call(append_zoom)
                                     })
                                
                             })
@@ -148,6 +165,7 @@
                                         appendg.remove();
                                         svg.on("click", null);
                                         title.text("北京市");
+                                        state = true;
                                     }
                                 })
                         }).on("mouseover", function() {
@@ -159,6 +177,15 @@
                             tip.hide();
                             distict.attr("stroke", "#999").attr("storke-width", 5)
                         })
+                        g_zoom = d3.zoom()
+                        .extent([[0, 0], [innerWidth, innerHeight]])
+                        .scaleExtent([1, 8])
+                        .on("zoom", function() {
+                            const {transform} = d3.event;
+                            g.attr("transform", transform)
+                            console.log(transform)
+                        })
+                         g.call(g_zoom)
 
             })
         })
